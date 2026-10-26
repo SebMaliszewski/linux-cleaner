@@ -1,0 +1,91 @@
+#!/bin/bash
+# mint-cleaner-helper — privileged helper for Mint Cleaner.
+# Accepts exactly ONE fixed subcommand, no other arguments. Installed as
+# /usr/local/sbin/mint-cleaner-helper (root:root 0755) and allowed via sudoers.
+set -u
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive
+
+usage() { echo "usage: ${0##*/} {apt-clean|apt-autoclean|apt-autoremove-check-strict|apt-autoremove-check-standard|apt-autoremove-strict|apt-autoremove-standard|rc-purge|flatpak-system|journal-vacuum}" >&2; exit 64; }
+[ "$#" -eq 1 ] || usage
+
+# Test hooks: ONLY honoured when NOT running as root (sudo resets env anyway).
+# MINT_CLEANER_FAKE_APT_LIST=<file with one package per line>, MINT_CLEANER_FAKE_KREL=<uname -r>
+FAKE=0
+if [ "$(id -u)" -ne 0 ] && [ -n "${MINT_CLEANER_FAKE_APT_LIST:-}" ]; then FAKE=1; fi
+
+KPAT='^linux-(image|modules|headers)'
+
+running_krel() {
+  if [ "$FAKE" -eq 1 ] && [ -n "${MINT_CLEANER_FAKE_KREL:-}" ]; then echo "$MINT_CLEANER_FAKE_KREL"; else uname -r; fi
+}
+autoremove_list() {
+  if [ "$FAKE" -eq 1 ]; then grep -Ev '^\s*(#|$)' "$MINT_CLEANER_FAKE_APT_LIST"; return; fi
+  apt-get -s autoremove --purge 2>/dev/null | awk '/^Purg |^Remv /{print $2}'
+}
+# Is package $1 a package of the running kernel $2 (e.g. 6.8.0-45-generic)?
+is_running_kernel_pkg() {
+  local p="$1" r="$2" base
+  base="${r%-*}"   # 6.8.0-45-generic -> 6.8.0-45
+  case "$p" in
+    *-"$r"|*-"$r":*) return 0 ;;                       # linux-image-6.8.0-45-generic
+    linux-headers-"$base"|linux-headers-"$base":*) return 0 ;;   # common headers
+  esac
+  return 1
+}
+# check <strict|standard>: print list, return 0 = OK, 3 = blocked
+check() {
+  local mode="$1" l k r bad=""
+  l=$(autoremove_list)
+  if [ -z "$l" ]; then echo "Autoremove list: (empty)"; return 0; fi
+  echo "Autoremove list:"; printf '%s\n' "$l" | sed 's/^/  - /'
+  k=$(printf '%s\n' "$l" | grep -E "$KPAT" || true)
+  [ -z "$k" ] && return 0
+  if [ "$mode" = strict ]; then
+    echo "BLOCKED (mode: protect all kernels): list contains kernel packages:" >&2
+    printf '%s\n' "$k" | sed 's/^/  ! /' >&2
+    return 3
+  fi
+  r=$(running_krel)
+  [ -n "$r" ] || { echo "BLOCKED: cannot determine running kernel" >&2; return 3; }
+  while IFS= read -r p; do is_running_kernel_pkg "$p" "$r" && bad+="$p"$'\n'; done <<< "$k"
+  if [ -n "$bad" ]; then
+    echo "BLOCKED (mode: standard): list contains the RUNNING kernel $r:" >&2
+    printf '%s' "$bad" | sed 's/^/  ! /' >&2
+    return 3
+  fi
+  echo "Old kernel packages will be removed (running kernel $r is kept):"
+  printf '%s\n' "$k" | sed 's/^/  ~ /'
+  return 0
+}
+need_root() { [ "$(id -u)" -eq 0 ] || { echo "must run as root (sudo)" >&2; exit 77; }; }
+
+autoremove() {
+  local mode="$1"
+  [ "$FAKE" -eq 1 ] || need_root
+  check "$mode" || { echo "ABORTED: nothing removed (kernel protection)." >&2; exit 3; }
+  [ -z "$(autoremove_list)" ] && { echo "Nothing to remove."; exit 0; }
+  if [ "$FAKE" -eq 1 ]; then echo "TEST MODE: would run: apt-get -y autoremove --purge"; exit 0; fi
+  # re-check right before acting (list could change in between)
+  check "$mode" >/dev/null || { echo "ABORTED: list changed." >&2; exit 3; }
+  apt-get -y autoremove --purge
+}
+
+case "$1" in
+  apt-clean)        need_root; apt-get clean && echo "OK: apt clean" ;;
+  apt-autoclean)    need_root; apt-get autoclean ;;
+  apt-autoremove-check-strict)   check strict ;;
+  apt-autoremove-check-standard) check standard ;;
+  apt-autoremove-strict)   autoremove strict ;;
+  apt-autoremove-standard) autoremove standard ;;
+  rc-purge)
+    need_root
+    l=$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' | awk '$1=="rc"{print $2}')
+    if [ -z "$l" ]; then echo "No leftovers."; exit 0; fi
+    if printf '%s\n' "$l" | grep -Eq "$KPAT"; then
+      { echo "ABORTED: leftovers include kernel packages:"; printf '%s\n' "$l"; } >&2; exit 3
+    fi
+    printf '%s\n' "$l" | xargs -r dpkg --purge ;;
+  flatpak-system)   need_root; flatpak uninstall --system --unused -y --noninteractive ;;
+  journal-vacuum)   need_root; journalctl --vacuum-time=2weeks ;;
+  *) echo "unknown subcommand: $1" >&2; usage ;;
+esac

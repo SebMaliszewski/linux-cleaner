@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Cleaner
+Name[pl]=Czyściciel
+Name[ja]=クリーナー
+GenericName=System Cleaner
+GenericName[pl]=Sprzątanie systemu
+GenericName[ja]=システムクリーナー
+Comment=Clean APT, Flatpak, logs, caches and trash
+Comment[pl]=Sprzątanie systemu: APT, Flatpak, logi, cache, kosz
+Comment[ja]=APT・Flatpak・ログ・キャッシュ・ゴミ箱を整理します
+Exec=@EXEC@
+Icon=mint-cleaner
+Terminal=false
+Categories=System;Utility;
+Keywords=clean;cleaner;cache;apt;flatpak;sprzątanie;掃除;クリーンアップ;
+StartupWMClass=mint-cleaner.py

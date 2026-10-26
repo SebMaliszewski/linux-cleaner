@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+ <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#8a4dff"/></linearGradient>
+  <linearGradient id="handle" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#e59a2f"/></linearGradient>
+  <linearGradient id="bristle" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfe0ff"/></linearGradient>
+ </defs>
+ <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)"/>
+ <rect x="22" y="84" width="84" height="22" rx="8" fill="#ffffff" fill-opacity="0.22"/>
+ <circle cx="94" cy="95" r="4" fill="#7ee787"/>
+ <rect x="30" y="93" width="44" height="4" rx="2" fill="#ffffff" fill-opacity="0.6"/>
+ <g transform="rotate(-38 64 64)">
+  <rect x="59" y="10" width="10" height="56" rx="5" fill="url(#handle)"/>
+  <rect x="52" y="62" width="24" height="9" rx="3" fill="#3b2a7a"/>
+  <path d="M50 71 H78 L86 100 Q64 106 42 100 Z" fill="url(#bristle)"/>
+  <path d="M56 74 L53 100 M64 74 V102 M72 74 L75 100" stroke="#9db6f0" stroke-width="2" stroke-linecap="round"/>
+ </g>
+ <g fill="#fff6c2">
+  <path d="M96 22 L99 31 L108 34 L99 37 L96 46 L93 37 L84 34 L93 31 Z"/>
+  <path d="M30 30 L32 35 L37 37 L32 39 L30 44 L28 39 L23 37 L28 35 Z"/>
+  <path d="M104 58 L105.5 62 L110 63.5 L105.5 65 L104 69 L102.5 65 L98 63.5 L102.5 62 Z"/>
+ </g>
+</svg>
